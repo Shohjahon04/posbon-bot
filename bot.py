@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from datetime import datetime
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, ChatMemberUpdated
@@ -106,7 +107,13 @@ dp = Dispatcher()
 
 def find_bad_words(text: str):
     t = text.lower()
-    return [w for w in BAD_WORDS if w in t]
+    found = []
+    for w in BAD_WORDS:
+        # Har bir harf kamida 1 marta takrorlanishiga ruxsat beramiz (masalan: ahmmooqq)
+        pattern = "".join([f"{re.escape(c)}+" for c in w])
+        if re.search(pattern, t):
+            found.append(w)
+    return found
 
 async def send_alert(chat_title, chat_id, chat_type, user_id,
                      username, full_name, found, text):
