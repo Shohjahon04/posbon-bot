@@ -2,17 +2,18 @@
   "1925985144": {
     "username": "Shohjahon0402",
     "full_name": "Shohjahon",
-    "total_violations": 1,
+    "total_violations": 2,
     "chats": {
       "-5046394904": {
         "name": "test",
         "type": "group",
-        "count": 1
+        "count": 2
       }
     },
     "words_used": {
-      "ahmoq": 1
+      "ahmoq": 1,
+      "yirtqich": 1
     },
-    "last_violation": "2026-03-17 18:07"
+    "last_violation": "2026-03-17 18:10"
   }
 }

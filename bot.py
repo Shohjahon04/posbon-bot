@@ -141,11 +141,6 @@ async def monitor_group(message: Message):
     if not found:
         return
         
-    try:
-        await message.delete()
-    except Exception as e:
-        print(f"Xabarni o'chirishda xatolik: {e}")
-        
     user = message.from_user
     update_stats(user.id, user.username, user.full_name,
                  message.chat.id, message.chat.title,
@@ -165,11 +160,6 @@ async def monitor_channel(message: Message):
     found = find_bad_words(text)
     if not found:
         return
-        
-    try:
-        await message.delete()
-    except Exception as e:
-        print(f"Postni o'chirishda xatolik: {e}")
         
     # Kanal postida user bo'lmaydi (admin yozadi)
     info = (
@@ -322,11 +312,24 @@ async def cmd_removeword(message: Message):
     save_bad_words(BAD_WORDS)
     await message.answer(f"✅ <b>{word}</b> haqoratli so'zlar ro'yxatidan o'chirildi.", parse_mode="HTML")
 
+from aiogram.types import BotCommand
+
+async def set_default_commands(bot: Bot):
+    commands = [
+        BotCommand(command="stats", description="Top 10 qoidabuzarlar"),
+        BotCommand(command="top", description="Top 5 qoidabuzarlar"),
+        BotCommand(command="chats", description="Kuzatilayotgan chatlar"),
+        BotCommand(command="addword", description="Yangi haqorat so'z qo'shish"),
+        BotCommand(command="removeword", description="Haqorat ro'yxatidan so'z olib tashlash"),
+    ]
+    await bot.set_my_commands(commands)
+
 # ============================================================
 # ISHGA TUSHIRISH
 # ============================================================
 async def main():
     print("✅ Bot ishga tushdi!")
+    await set_default_commands(bot)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
