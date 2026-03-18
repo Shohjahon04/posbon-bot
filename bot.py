@@ -119,6 +119,11 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
                      username, full_name, found, text):
     """Adminga xabar yuborish"""
     type_emoji = {"channel": "📢", "supergroup": "👥", "group": "👥"}.get(chat_type, "💬")
+    # Telegram odatda userni telefon raqamini yashiradi va faqat u botga ulashsa "contact" type orqali keladi.
+    # Lekin ba'zi Premium userlarda yopilmagan bo'lsa yoki bazada bo'lsa qidirishga harakat qilamiz
+    # Asosan bu narsa faqat Contact sifatida yuborilgan mesajda bo'ladi, doimiy messages ichida emas.
+    # Uning uchun Telegram API 'user' obyektida telefon raqam qaytarmaydi :( (Faqat id, ism, username, premium mavjud).
+    
     info = (
         f"⚠️ <b>Haqorat aniqlandi!</b>\n\n"
         f"{type_emoji} Tur: <b>{chat_type}</b>\n"
@@ -129,7 +134,7 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
         f"🆔 User ID: <code>{user_id}</code>\n"
         f"🚫 So'zlar: <code>{', '.join(found)}</code>\n"
         f"🕐 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-        f"💬 Xabar:\n<i>{text[:400]}</i>"
+        f"💬 Xabar/Nomi:\n<i>{text[:400]}</i>"
     )
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Bu userni ko'rish", callback_data=f"ustats_{user_id}")
@@ -141,7 +146,19 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
 # ============================================================
 @dp.message(F.chat.type.in_({"group", "supergroup"}))
 async def monitor_group(message: Message):
-    text = message.text or message.caption or ""
+    # Ovozli xabarni qabul qilish (ovozli nomi yoki caption'i bo'lishi mumkin)
+    text = ""
+    if message.text:
+        text = message.text
+    elif message.caption:
+        text = message.caption
+    elif message.audio and message.audio.file_name:
+        text = message.audio.file_name
+    elif message.voice:
+        # Voice (ovozli xabar) larning ichini text qilib o'qish imkonsiz (Speech2Text kerak).
+        # Hozircha uning caption bo'lsa shuni oladi. 
+        pass
+        
     if not text:
         return
     found = find_bad_words(text)
