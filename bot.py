@@ -192,8 +192,12 @@ async def monitor_group(message: Message):
     chat_link = "Noma'lum"
     if message.chat.username:
         chat_link = f"https://t.me/{message.chat.username}"
-    elif message.chat.invite_link:
-        chat_link = message.chat.invite_link
+    else:
+        try:
+            chat_link = await bot.export_chat_invite_link(message.chat.id)
+        except Exception:
+            if message.chat.invite_link:
+                chat_link = message.chat.invite_link
         
     msg_link = "Noma'lum"
     if message.chat.username:
