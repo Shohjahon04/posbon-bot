@@ -228,15 +228,41 @@ async def monitor_channel(message: Message):
         return
         
     # Kanal postida user bo'lmaydi (admin yozadi)
+    chat_link = "Noma'lum"
+    if message.chat.username:
+        chat_link = f"https://t.me/{message.chat.username}"
+    else:
+        try:
+            chat_link = await bot.export_chat_invite_link(message.chat.id)
+        except Exception:
+            if message.chat.invite_link:
+                chat_link = message.chat.invite_link
+                
+    msg_link = "Noma'lum"
+    if message.chat.username:
+        msg_link = f"https://t.me/{message.chat.username}/{message.message_id}"
+    elif str(message.chat.id).startswith("-100"):
+        clean_id = str(message.chat.id)[4:]
+        msg_link = f"https://t.me/c/{clean_id}/{message.message_id}"
+
+    chat_display = f"<a href='{chat_link}'>{message.chat.title}</a>" if (chat_link and chat_link != "Noma'lum") else f"<b>{message.chat.title}</b>"
+    chat_link_display = chat_link if chat_link else "Noma'lum"
+
     info = (
         f"⚠️ <b>Kanalda haqorat!</b>\n\n"
-        f"📢 Kanal: <b>{message.chat.title}</b>\n"
+        f"📢 Nomi: {chat_display}\n"
+        f"🔗 Kanal Link: {chat_link_display}\n"
         f"🆔 Kanal ID: <code>{message.chat.id}</code>\n"
         f"🚫 So'zlar: <code>{', '.join(found)}</code>\n"
         f"🕐 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
         f"💬 Post:\n<i>{text[:400]}</i>"
     )
-    await bot.send_message(ADMIN_ID, info, parse_mode="HTML")
+    
+    kb = InlineKeyboardBuilder()
+    if msg_link and msg_link != "Noma'lum":
+        kb.button(text="➡️ Xabarga o'tish", url=msg_link)
+        
+    await bot.send_message(ADMIN_ID, info, parse_mode="HTML", reply_markup=kb.as_markup() if msg_link != "Noma'lum" else None)
 
 # ============================================================
 # BOT GURUHGA QO'SHILGANDA XABAR
