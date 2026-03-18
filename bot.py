@@ -60,8 +60,19 @@ def save_bad_words(words_set):
 BAD_WORDS = load_bad_words()
 
 # ============================================================
-# STATISTIKA
+# STATISTIKA VA XOTIRA
 # ============================================================
+LAST_REPORT_FILE = "last_report.txt"
+
+def get_last_report_date():
+    if os.path.exists(LAST_REPORT_FILE):
+        with open(LAST_REPORT_FILE, "r") as f:
+            return f.read().strip()
+    return ""
+
+def set_last_report_date(date_str):
+    with open(LAST_REPORT_FILE, "w") as f:
+        f.write(date_str)
 def load_stats():
     if os.path.exists(STATS_FILE):
         with open(STATS_FILE, "r", encoding="utf-8") as f:
@@ -277,6 +288,32 @@ async def cmd_chats(message: Message):
         text += f"{emoji} <b>{c['name']}</b> — {c['total']} ta holat\n"
     await message.answer(text, parse_mode="HTML")
 
+@dp.message(Command("topwords"))
+async def cmd_topwords(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    stats = load_stats()
+    if not stats:
+        await message.answer("Ma'lumot yo'q.")
+        return
+        
+    global_words = {}
+    for uid, d in stats.items():
+        for w, count in d.get("words_used", {}).items():
+            global_words[w] = global_words.get(w, 0) + count
+            
+    if not global_words:
+        await message.answer("Hali hech qanday haqorat so'z qayd etilmagan.")
+        return
+        
+    sorted_words = sorted(global_words.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    text = "🔥 <b>Barcha guruhlar bo'yicha eng ko'p ishlatilgan 10 ta haqorat:</b>\n\n"
+    for i, (w, count) in enumerate(sorted_words, 1):
+        text += f"{i}. <b>{w}</b> — {count} marta\n"
+        
+    await message.answer(text, parse_mode="HTML")
+
 @dp.callback_query(F.data.startswith("ustats_"))
 async def cb_user_stats(callback: CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
@@ -343,10 +380,42 @@ async def set_default_commands(bot: Bot):
         BotCommand(command="stats", description="Top 10 qoidabuzarlar"),
         BotCommand(command="top", description="Top 5 qoidabuzarlar"),
         BotCommand(command="chats", description="Kuzatilayotgan chatlar"),
+        BotCommand(command="topwords", description="Eng ko'p ishlatilgan so'zlar"),
         BotCommand(command="addword", description="Yangi haqorat so'z qo'shish"),
         BotCommand(command="removeword", description="Haqorat ro'yxatidan so'z olib tashlash"),
     ]
     await bot.set_my_commands(commands)
+
+async def daily_report_task():
+    """Har 1 soatda vaqtni tekshirib, 22:00 da (O'zbekiston vaqti bilan UTC+5) xabar yuboradi"""
+    while True:
+        try:
+            # Hozirgi Local vaqt (Server vaqti O'zbekiston yoki UTC bo'lishi mumkinligi uchun aniqlashtirish kerak)
+            # Render odatda UTC da ishlaydi. UTC ga 5 soat qo'shib tekshiramiz.
+            now = datetime.utcnow()
+            hour_uz = (now.hour + 5) % 24  # O'zbekiston vaqti
+            date_uz = datetime.now().strftime("%Y-%m-%d")
+            
+            # Agar soat 22 (yoki undan keyin) bo'lsa va bugun hali report tashlanmagan bo'lsa
+            if hour_uz >= 22 and get_last_report_date() != date_uz:
+                stats = load_stats()
+                if stats:
+                    # Kunlik qisqa report
+                    total_violators = len(stats)
+                    total_violations = sum(d["total_violations"] for d in stats.values())
+                    
+                    text = (
+                        f"📊 <b>KUNLIK HISOBOT ({date_uz})</b>\n\n"
+                        f"Jami qoidabuzarlar: <b>{total_violators} ta</b>\n"
+                        f"Jami haqoratlar qayd etildi: <b>{total_violations} marta</b>\n\n"
+                        f"Batafsil ma'lumot uchun /top yoki /stats komandalarini bering."
+                    )
+                    await bot.send_message(ADMIN_ID, text, parse_mode="HTML")
+                    set_last_report_date(date_uz)
+        except Exception as e:
+            print(f"Daily report xatoligi: {e}")
+            
+        await asyncio.sleep(3600)  # Har soatda tekshirish
 
 # ============================================================
 # ISHGA TUSHIRISH
@@ -354,6 +423,10 @@ async def set_default_commands(bot: Bot):
 async def main():
     print("✅ Bot ishga tushdi!")
     await set_default_commands(bot)
+    
+    # Background vazifani ishga tushirish (Kunlik report)
+    asyncio.create_task(daily_report_task())
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
