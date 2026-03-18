@@ -127,9 +127,15 @@ def find_bad_words(text: str):
     return found
 
 async def send_alert(chat_title, chat_id, chat_type, user_id,
-                     username, full_name, found, text, phone_number="Noma'lum"):
+                     username, full_name, found, text,
+                     phone_number="Noma'lum",
+                     chat_link="Noma'lum",
+                     message_link="Noma'lum"):
     """Adminga xabar yuborish"""
     type_emoji = {"channel": "📢", "supergroup": "👥", "group": "👥"}.get(chat_type, "💬")
+    
+    # Chat nomi va linki
+    chat_display = f"<a href='{chat_link}'>{chat_title}</a>" if chat_link != "Noma'lum" else f"<b>{chat_title}</b>"
     # Telegram odatda userni telefon raqamini yashiradi va faqat u botga ulashsa "contact" type orqali keladi.
     # Lekin ba'zi Premium userlarda yopilmagan bo'lsa yoki bazada bo'lsa qidirishga harakat qilamiz
     # Asosan bu narsa faqat Contact sifatida yuborilgan mesajda bo'ladi, doimiy messages ichida emas.
@@ -138,7 +144,8 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
     info = (
         f"⚠️ <b>Haqorat aniqlandi!</b>\n\n"
         f"{type_emoji} Tur: <b>{chat_type}</b>\n"
-        f"📌 Nomi: <b>{chat_title}</b>\n"
+        f"📌 Nomi: {chat_display}\n"
+        f"🔗 Chat Link: {chat_link}\n"
         f"🆔 Chat ID: <code>{chat_id}</code>\n"
         f"👤 User: <b>{full_name}</b>\n"
         f"🔗 Username: @{username or 'yoq'}\n"
@@ -148,7 +155,10 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
         f"🕐 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
         f"💬 Xabar/Nomi:\n<i>{text[:400]}</i>"
     )
+    
     kb = InlineKeyboardBuilder()
+    if message_link != "Noma'lum":
+        kb.button(text="➡️ Xabarga o'tish", url=message_link)
     kb.button(text="📊 Bu userni ko'rish", callback_data=f"ustats_{user_id}")
     await bot.send_message(ADMIN_ID, info, parse_mode="HTML",
                            reply_markup=kb.as_markup())
@@ -182,12 +192,27 @@ async def monitor_group(message: Message):
     if message.contact and message.contact.phone_number:
         phone = message.contact.phone_number
         
+    chat_link = "Noma'lum"
+    if message.chat.username:
+        chat_link = f"https://t.me/{message.chat.username}"
+    elif message.chat.invite_link:
+        chat_link = message.chat.invite_link
+        
+    msg_link = "Noma'lum"
+    if message.chat.username:
+        msg_link = f"https://t.me/{message.chat.username}/{message.message_id}"
+    elif message.chat.type == "supergroup":
+        # Yopiq supergrouplar uchtalik ID bilan boshlanadigan link ishlatishadi. -100 idisni tekislaymiz
+        clean_id = str(message.chat.id)[4:] if str(message.chat.id).startswith("-100") else str(message.chat.id)
+        msg_link = f"https://t.me/c/{clean_id}/{message.message_id}"
+        
     update_stats(user.id, user.username, user.full_name,
                  message.chat.id, message.chat.title,
                  message.chat.type, found)
     await send_alert(message.chat.title, message.chat.id,
                      message.chat.type, user.id,
-                     user.username, user.full_name, found, text, phone)
+                     user.username, user.full_name, found, text,
+                     phone, chat_link, msg_link)
 
 # ============================================================
 # KANAL POSTLARI
