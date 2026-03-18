@@ -127,7 +127,7 @@ def find_bad_words(text: str):
     return found
 
 async def send_alert(chat_title, chat_id, chat_type, user_id,
-                     username, full_name, found, text):
+                     username, full_name, found, text, phone_number="Noma'lum"):
     """Adminga xabar yuborish"""
     type_emoji = {"channel": "📢", "supergroup": "👥", "group": "👥"}.get(chat_type, "💬")
     # Telegram odatda userni telefon raqamini yashiradi va faqat u botga ulashsa "contact" type orqali keladi.
@@ -142,6 +142,7 @@ async def send_alert(chat_title, chat_id, chat_type, user_id,
         f"🆔 Chat ID: <code>{chat_id}</code>\n"
         f"👤 User: <b>{full_name}</b>\n"
         f"🔗 Username: @{username or 'yoq'}\n"
+        f"📞 Telefon: <b>{phone_number}</b>\n"
         f"🆔 User ID: <code>{user_id}</code>\n"
         f"🚫 So'zlar: <code>{', '.join(found)}</code>\n"
         f"🕐 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
@@ -177,12 +178,16 @@ async def monitor_group(message: Message):
         return
         
     user = message.from_user
+    phone = "Yashirin"
+    if message.contact and message.contact.phone_number:
+        phone = message.contact.phone_number
+        
     update_stats(user.id, user.username, user.full_name,
                  message.chat.id, message.chat.title,
                  message.chat.type, found)
     await send_alert(message.chat.title, message.chat.id,
                      message.chat.type, user.id,
-                     user.username, user.full_name, found, text)
+                     user.username, user.full_name, found, text, phone)
 
 # ============================================================
 # KANAL POSTLARI
